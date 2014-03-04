@@ -26,7 +26,6 @@ map = "function () {   emit(this.user.screen_name, { count:1 }); }"
 
 client = TweetStream::Client.new.track(words) do |status|
   #puts "[#{status.user.screen_name}] #{status.text}"
-  puts "[#{status.user.screen_name}] #{status}"
   data = status.to_h
   tweets.insert(data)
   #mapreduce job
