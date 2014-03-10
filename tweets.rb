@@ -5,8 +5,8 @@ require 'mongo'
 include Mongo
 
 #variables
-words = "mapr, hadoop, bigdata"
-max_tweets = 20
+@words = "mapr, hadoop, bigdata"
+@max_tweets = 20
 
 #Tweetstream configuration
 TweetStream.configure do |config|
@@ -19,21 +19,28 @@ end
 
 #MongoDB configuration
 db = MongoClient.new("localhost", 27017).db("tweetsDB")
-tweets = db.collection("tweets")
+@tweets = db.collection("tweets")
 
-reduce = "function (key, score) {   var sum = 0;   score.forEach(function(doc){ sum += 1; });   return { count:sum }; }"
-map = "function () {   emit(this.user.screen_name, { count:1 }); }"
+def getTweets
+  client = TweetStream::Client.new.track(@words) do |status|
+    puts "[#{status.user.screen_name}] #{status.text}"
+    data = status.to_h
+    @tweets.insert(data)
+    mapR()
+  end
+end
 
-client = TweetStream::Client.new.track(words) do |status|
-  #puts "[#{status.user.screen_name}] #{status.text}"
-  data = status.to_h
-  tweets.insert(data)
-  #mapreduce job
-  results = tweets.map_reduce(map, reduce, { out: "results" })
-  #display most active users
-  user = results.find({"$where" => "this.value.count > #{max_tweets}"}).to_a
-  user.each { |x| 
+def mapR
+    reduce = "function (key, score) {   var sum = 0;   score.forEach(function(doc){ sum += 1; });   return { count:sum }; }"
+    map = "function () {   emit(this.user.screen_name, { count:1 }); }"
+    #mapreduce job
+    results = @tweets.map_reduce(map, reduce, { out: "results" })
+    #display most active users
+    user = results.find({"$where" => "this.value.count > #{@max_tweets}"}).to_a
+    user.each { |x| 
       puts x["_id"] 
       puts x["value"]["count"]
       }
 end
+
+getTweets()
